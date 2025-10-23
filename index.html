@@ -269,7 +269,7 @@
         // --- ★★★ 중요 ★★★ ---
         // 1. Google Apps Script 배포 후 받은 '웹 앱 URL'을 여기에 붙여넣으세요.
         // 2. URL 끝에 '/'가 포함되지 않도록 주의하세요.
-        const GOOGLE_APPS_SCRIPT_URL = "https://script.google.com/a/macros/coway.com/s/AKfycbw7NjFEkqHX1zysHl_SdvVw8iBWmZCw4ITYXnK5tMdYY8Yv4tFv3uHeOD7KKmeN4d3f/exec"; 
+        const GOOGLE_APPS_SCRIPT_URL = "https://script.google.com/a/macros/coway.com/s/AKfycbz9zaT8xrKMQlB52-O5yR4oBXSWo7wWuOlZKogQbh0CCo81Ry30AgTtLz1-hOpPi22g/exec"; 
         // -------------------------
 
         // --- 전역 변수 및 상태 관리 ---
@@ -424,7 +424,7 @@
          * GAS에서 앱 설정(config) 로드
          */
         async function loadConfigAndRenderLogin() {
-            if (GOOGLE_APPS_SCRIPT_URL === "https://script.google.com/a/macros/coway.com/s/AKfycbw7NjFEkqHX1zysHl_SdvVw8iBWmZCw4ITYXnK5tMdYY8Yv4tFv3uHeOD7KKmeN4d3f/exec") {
+            if (GOOGLE_APPS_SCRIPT_URL === "https://script.google.com/a/macros/coway.com/s/AKfycbz9zaT8xrKMQlB52-O5yR4oBXSWo7wWuOlZKogQbh0CCo81Ry30AgTtLz1-hOpPi22g/exec") {
                 showMessage("앱이 설정되지 않았습니다. HTML 파일 상단의 GOOGLE_APPS_SCRIPT_URL 변수를 수정해주세요.", "설정 오류");
                 return;
             }
@@ -779,7 +779,7 @@
         async function handleSubmitInspection(e) {
             e.preventDefault();
             
-            if (GOOGLE_APPS_SCRIPT_URL === "https://script.google.com/a/macros/coway.com/s/AKfycbw7NjFEkqHX1zysHl_SdvVw8iBWmZCw4ITYXnK5tMdYY8Yv4tFv3uHeOD7KKmeN4d3f/exec") {
+            if (GOOGLE_APPS_SCRIPT_URL === "https://script.google.com/a/macros/coway.com/s/AKfycbz9zaT8xrKMQlB52-O5yR4oBXSWo7wWuOlZKogQbh0CCo81Ry30AgTtLz1-hOpPi22g/exec") {
                 showMessage("앱이 설정되지 않았습니다. HTML 파일 상단의 GOOGLE_APPS_SCRIPT_URL 변수를 수정해주세요.", "설정 오류");
                 return;
             }
