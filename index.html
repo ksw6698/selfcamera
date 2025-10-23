@@ -260,8 +260,9 @@
         </div>
     </div>
 
-    <!-- lucide-icons 로드 (body 끝으로 이동) -->
-    <script src="https://unpkg.com/lucide-react@latest/dist/lucide.js"></script>
+    <!-- ★★★ lucide-icons 로드 (수정된 부분) ★★★ -->
+    <!-- 'lucide-react'가 아닌 'lucide' UMD 버전을 로드합니다. -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 
     <!-- 앱 메인 스크립트 -->
     <script type="module">
@@ -423,7 +424,7 @@
          * GAS에서 앱 설정(config) 로드
          */
         async function loadConfigAndRenderLogin() {
-            if (GOOGLE_APPS_SCRIPT_URL === "https://script.google.com/a/macros/coway.com/s/AKfycbwLRE3Js2yTYJgvcSVw_Wm7AgdcjXu4bt14Rpe26WEQwy2rbC8GInsfIoZPThTIBmJQ/exec") {
+            if (GOOGLE_APPS_SCRIPT_URL === "https://script.google.com/a/macros/coway.com/s/AKfycbw2qqYZEwZBwsHt64OedOhS5k07G57JLJnY91t0FBP_G97CLMPwYZsb9nabbINdcU8/exec") {
                 showMessage("앱이 설정되지 않았습니다. HTML 파일 상단의 GOOGLE_APPS_SCRIPT_URL 변수를 수정해주세요.", "설정 오류");
                 return;
             }
@@ -466,7 +467,7 @@
                 }
             } catch (error) {
                 console.error("설정 로드 오류:", error);
-                showMessage(`앱 설정을 불러오는 데 실패했습니다: ${error.message}. Google Sheet 설정과 Apps Script 배포를 확인하세요.`, "오류");
+                showMessage(`앱 설정을 불러오는 데 실패했습니다: ${error.message}. Google Sheet 설정과 Apps Script 배포, 브라우저의 회사 계정 로그인을 확인하세요.`, "오류");
             } finally {
                 showLoading(false);
             }
