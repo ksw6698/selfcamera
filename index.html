@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>필드테스트 피드백 앱</title>
+    <!-- Tailwind CSS 로드 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Inter 폰트 로드 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Noto Sans KR', 'Inter', sans-serif;
+        }
+        /* 페이지 기본 스타일 */
+        .page {
+            display: none; /* 기본적으로 모든 페이지 숨김 */
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        .page.active {
+            display: block; /* 활성 페이지만 보임 */
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        /* 로딩 스피너 */
+        #loading-spinner {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            backdrop-filter: blur(4px);
+        }
+        /* 커스텀 메시지 모달 */
+        #message-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: none; /* 초기 숨김 */
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+        }
+        .modal-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            max-width: 90%;
+            width: 400px;
+            text-align: center;
+        }
+        /* 별점 평가 */
+        .star-rating {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem; /* 8px */
+        }
+        .star-rating svg {
+            width: 2.5rem; /* 40px */
+            height: 2.5rem; /* 40px */
+            cursor: pointer;
+            color: #e5e7eb; /* gray-300 */
+        }
+        .star-rating svg.selected {
+            color: #f59e0b; /* amber-500 */
+        }
+        /* 카메라 아이콘 스타일 */
+        .camera-icon-bg {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 50%;
+            padding: 1rem;
+            display: inline-block;
+        }
+        /* 숨겨진 input[type=file]을 위한 label 스타일 */
+        .file-input-label {
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            height: 250px;
+            background-color: #f3f4f6; /* gray-100 */
+            border: 2px dashed #d1d5db; /* gray-300 */
+            border-radius: 0.5rem; /* rounded-lg */
+            transition: background-color 0.2s;
+        }
+        .file-input-label:hover {
+            background-color: #e5e7eb; /* gray-200 */
+        }
+        /* 상세 보기 페이지 이미지 (Google Drive URL용) */
+        #detail-content img {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #e5e7eb; /* gray-200 */
+            border-radius: 0.375rem; /* rounded-md */
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+    <div id="app-container" class="max-w-2xl mx-auto bg-white min-h-screen shadow-lg">
+
+        <!-- 로딩 스피너 -->
+        <div id="loading-spinner" style="display: none;">
+            <svg class="animate-spin h-10 w-10 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+        </div>
+
+        <!-- 커스텀 메시지 모달 -->
+        <div id="message-modal">
+            <div class="modal-content">
+                <h3 id="modal-title" class="text-xl font-bold mb-4">알림</h3>
+                <p id="modal-message" class="mb-6"></p>
+                <button id="modal-close-btn" class="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition">확인</button>
+            </div>
+        </div>
+
+        <!-- 1. 로그인 페이지 -->
+        <div id="login-page" class="page active p-6 md:p-10">
+            <header class="text-center mb-10">
+                <i data-lucide="droplet" class="w-16 h-16 text-blue-600 mx-auto mb-4"></i>
+                <h1 id="app-title" class="text-3xl font-bold text-gray-900"></h1>
+                <p class="text-gray-600 mt-2">자가관리 필드테스트에 오신 것을 환영합니다.</p>
+            </header>
+            
+            <main>
+                <div class="mb-6">
+                    <label for="user-select" class="block text-sm font-medium text-gray-700 mb-2">테스터 선택</label>
+                    <select id="user-select" class="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        <option value="">이름을 선택하세요</option>
+                    </select>
+                </div>
+                <button id="login-btn" class="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-md hover:bg-blue-700 transition shadow-md disabled:opacity-50" disabled>
+                    시작하기
+                </button>
+            </main>
+        </div>
+
+        <!-- 2. 메인 메뉴 페이지 -->
+        <div id="main-menu-page" class="page p-6 md:p-10">
+            <header class="flex justify-between items-center mb-8 pb-4 border-b">
+                <div>
+                    <h1 id="welcome-message" class="text-2xl font-bold text-gray-900"></h1>
+                    <p class="text-gray-600">오늘의 점검을 진행해주세요.</p>
+                </div>
+                <button id="logout-btn" title="로그아웃" class="text-gray-500 hover:text-red-600 transition">
+                    <i data-lucide="log-out" class="w-6 h-6"></i>
+                </button>
+            </header>
+
+            <main>
+                <button id="start-inspection-btn" class="w-full bg-blue-600 text-white font-bold py-4 px-5 rounded-lg hover:bg-blue-700 transition shadow-lg text-lg mb-8 flex items-center justify-center gap-2">
+                    <i data-lucide="play-circle" class="w-6 h-6"></i>
+                    새 점검 시작하기
+                </button>
+
+                <div>
+                    <h2 class="text-xl font-semibold mb-4">이전 제출 내역</h2>
+                    <div id="submissions-list" class="space-y-3">
+                        <!-- '데이터 없음' 메시지 -->
+                         <div id="no-submissions" class="text-center text-gray-500 p-6 bg-gray-100 rounded-lg" style="display: none;">
+                            <i data-lucide="file-text" class="w-12 h-12 mx-auto mb-3 text-gray-400"></i>
+                            <p>아직 제출한 내역이 없습니다.</p>
+                        </div>
+                        <!-- 제출 내역이 여기에 동적으로 추가됩니다 -->
+                    </div>
+                </div>
+            </main>
+        </div>
+
+        <!-- 3. 점검 페이지 -->
+        <div id="inspection-page" class="page p-6 md:p-8">
+            <header class="flex items-center mb-6 pb-4 border-b">
+                <button id="back-to-menu-btn" class="text-gray-600 hover:text-blue-600 p-2 -ml-2 mr-2">
+                    <i data-lucide="arrow-left" class="w-6 h-6"></i>
+                </button>
+                <h1 class="text-2xl font-bold text-gray-900">점검 및 피드백 기록</h1>
+            </header>
+
+            <form id="inspection-form">
+                <!-- 사진 촬영 항목 (동적 생성) -->
+                <div id="inspection-items-container" class="space-y-8 mb-8">
+                    <!-- 항목이 여기에 동적으로 추가됩니다 -->
+                </div>
+
+                <!-- 종합 피드백 -->
+                <div class="space-y-6 bg-gray-50 p-6 rounded-lg shadow-inner">
+                    <h2 class="text-xl font-semibold text-gray-800 border-b pb-3">종합 피드백</h2>
+                    
+                    <!-- 관리 난이도 -->
+                    <div>
+                        <label class="block text-md font-medium text-gray-700 mb-3">1. 관리 난이도는 어떠셨나요?</label>
+                        <div id="difficulty-rating" class="star-rating" data-value="0">
+                            <svg data-rating="1" fill="currentColor" viewBox="0 0 20 20"><path d="M10 15l-5.878 3.09 1.123-6.545L.489 7.09l6.572-.955L10 0l2.939 6.135 6.572.955-4.756 4.455 1.123 6.545z"/></svg>
+                            <svg data-rating="2" fill="currentColor" viewBox="0 0 20 20"><path d="M10 15l-5.878 3.09 1.123-6.545L.489 7.09l6.572-.955L10 0l2.939 6.135 6.572.955-4.756 4.455 1.123 6.545z"/></svg>
+                            <svg data-rating="3" fill="currentColor" viewBox="0 0 20 20"><path d="M10 15l-5.878 3.09 1.123-6.545L.489 7.09l6.572-.955L10 0l2.939 6.135 6.572.955-4.756 4.455 1.123 6.545z"/></svg>
+                            <svg data-rating="4" fill="currentColor" viewBox="0 0 20 20"><path d="M10 15l-5.878 3.09 1.123-6.545L.489 7.09l6.572-.955L10 0l2.939 6.135 6.572.955-4.756 4.455 1.123 6.545z"/></svg>
+                            <svg data-rating="5" fill="currentColor" viewBox="0 0 20 20"><path d="M10 15l-5.878 3.09 1.123-6.545L.489 7.09l6.572-.955L10 0l2.939 6.135 6.572.955-4.756 4.455 1.123 6.545z"/></svg>
+                        </div>
+                        <input type="hidden" id="difficulty-input" value="0">
+                    </div>
+
+                    <!-- 전반적 만족도 -->
+                    <div>
+                        <label class="block text-md font-medium text-gray-700 mb-3">2. 전반적인 만족도는 어떠셨나요?</label>
+                        <div id="satisfaction-rating" class="star-rating" data-value="0">
+                            <svg data-rating="1" fill="currentColor" viewBox="0 0 20 20"><path d="M10 15l-5.878 3.09 1.123-6.545L.489 7.09l6.572-.955L10 0l2.939 6.135 6.572.955-4.756 4.455 1.123 6.545z"/></svg>
+                            <svg data-rating="2" fill="currentColor" viewBox="0 0 20 20"><path d="M10 15l-5.878 3.09 1.123-6.545L.489 7.09l6.572-.955L10 0l2.939 6.135 6.572.955-4.756 4.455 1.123 6.545z"/></svg>
+                            <svg data-rating="3" fill="currentColor" viewBox="0 0 20 20"><path d="M10 15l-5.878 3.09 1.123-6.545L.489 7.09l6.572-.955L10 0l2.939 6.135 6.572.955-4.756 4.455 1.123 6.545z"/></svg>
+                            <svg data-rating="4" fill="currentColor" viewBox="0 0 20 20"><path d="M10 15l-5.878 3.09 1.123-6.545L.489 7.09l6.572-.955L10 0l2.939 6.135 6.572.955-4.756 4.455 1.123 6.545z"/></svg>
+                            <svg data-rating="5" fill="currentColor" viewBox="0 0 20 20"><path d="M10 15l-5.878 3.09 1.123-6.545L.489 7.09l6.572-.955L10 0l2.939 6.135 6.572.955-4.756 4.455 1.123 6.545z"/></svg>
+                        </div>
+                        <input type="hidden" id="satisfaction-input" value="0">
+                    </div>
+
+                    <!-- 추가 의견 -->
+                    <div>
+                        <label for="comments" class="block text-md font-medium text-gray-700 mb-2">3. 추가 의견 (위생, 점검방법, 난이도 등)</label>
+                        <textarea id="comments" rows="5" class="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" placeholder="자유롭게 의견을 남겨주세요..."></textarea>
+                    </div>
+                </div>
+
+                <!-- 제출 버튼 -->
+                <button type="submit" id="submit-inspection-btn" class="w-full mt-8 bg-green-600 text-white font-bold py-4 px-5 rounded-lg hover:bg-green-700 transition shadow-lg text-lg flex items-center justify-center gap-2">
+                    <i data-lucide="check-circle" class="w-6 h-6"></i>
+                    제출하기
+                </button>
+            </form>
+        </div>
+
+        <!-- 4. 제출 상세 보기 페이지 -->
+        <div id="submission-detail-page" class="page p-6 md:p-8">
+            <header class="flex items-center mb-6 pb-4 border-b">
+                <button id="back-to-menu-from-detail-btn" class="text-gray-600 hover:text-blue-600 p-2 -ml-2 mr-2">
+                    <i data-lucide="arrow-left" class="w-6 h-6"></i>
+                </button>
+                <h1 id="detail-page-title" class="text-2xl font-bold text-gray-900">제출 내역 상세</h1>
+            </header>
+
+            <main id="detail-content" class="space-y-6">
+                <!-- 상세 내용이 여기에 동적으로 추가됩니다 -->
+            </main>
+        </div>
+    </div>
+
+    <!-- lucide-icons 로드 (body 끝으로 이동) -->
+    <script src="https://unpkg.com/lucide-react@latest/dist/lucide.js"></script>
+
+    <!-- 앱 메인 스크립트 -->
+    <script type="module">
+        // --- ★★★ 중요 ★★★ ---
+        // 1. Google Apps Script 배포 후 받은 '웹 앱 URL'을 여기에 붙여넣으세요.
+        // 2. URL 끝에 '/'가 포함되지 않도록 주의하세요.
+        const GOOGLE_APPS_SCRIPT_URL = "YOUR_GOOGLE_APPS_SCRIPT_URL_HERE"; 
+        // -------------------------
+
+        // --- 전역 변수 및 상태 관리 ---
+        const appState = {
+            currentPage: 'login', // 'login', 'main-menu', 'inspection', 'submission-detail'
+            selectedTestUser: null, // "박민경", "문지영" 등
+            config: null, // Google Sheet에서 로드한 앱 설정
+            submissions: [], // 현재 사용자의 제출 내역
+            currentSubmissionPhotos: {}, // { itemId: "base64string" }
+            viewingSubmission: null, // 상세 보기 중인 제출 객체
+        };
+
+        // --- DOM 요소 ---
+        const pages = {
+            login: document.getElementById('login-page'),
+            mainMenu: document.getElementById('main-menu-page'),
+            inspection: document.getElementById('inspection-page'),
+            submissionDetail: document.getElementById('submission-detail-page'),
+        };
+        const loadingSpinner = document.getElementById('loading-spinner');
+        const modal = document.getElementById('message-modal');
+        const modalTitle = document.getElementById('modal-title');
+        const modalMessage = document.getElementById('modal-message');
+
+        // --- 유틸리티 함수 ---
+
+        /**
+         * 로딩 스피너 표시/숨김
+         * @param {boolean} show - 표시 여부
+         */
+        function showLoading(show) {
+            loadingSpinner.style.display = show ? 'flex' : 'none';
+        }
+
+        /**
+         * 커스텀 메시지 모달 표시
+         * @param {string} message - 표시할 메시지
+         * @param {string} [title='알림'] - 모달 제목
+         */
+        function showMessage(message, title = '알림') {
+            modalTitle.textContent = title;
+            modalMessage.textContent = message;
+            modal.style.display = 'flex';
+        }
+
+        /**
+         * 현재 페이지를 변경하고 UI를 갱신
+         * @param {string} pageName - 'login', 'mainMenu', 'inspection', 'submissionDetail'
+         */
+        function navigateTo(pageName) {
+            appState.currentPage = pageName;
+            Object.values(pages).forEach(page => page.classList.remove('active'));
+            if (pages[pageName]) {
+                pages[pageName].classList.add('active');
+            }
+            window.scrollTo(0, 0); // 페이지 상단으로 스크롤
+        }
+
+        /**
+         * 날짜 객체를 "YYYY년 MM월 DD일 HH:mm" 형식으로 포맷
+         * @param {string | Date} dateString - 포맷할 날짜 (ISO 문자열 또는 Date 객체)
+         */
+        function formatTimestamp(dateString) {
+            try {
+                const date = new Date(dateString);
+                if (isNaN(date.getTime())) return "유효하지 않은 날짜";
+                return `${date.getFullYear()}년 ${String(date.getMonth() + 1).padStart(2, '0')}월 ${String(date.getDate()).padStart(2, '0')}일 ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+            } catch (e) {
+                return "날짜 변환 오류";
+            }
+        }
+        
+        /**
+         * 별점 평가 UI 렌더링
+         * @param {HTMLElement} container - 별점 컨테이너
+         * @param {number} rating - 현재 평점 (0-5)
+         */
+        function renderStars(container, rating) {
+            const numericRating = Number(rating) || 0;
+            container.dataset.value = numericRating;
+            const stars = container.querySelectorAll('svg');
+            stars.forEach(star => {
+                const starRating = parseInt(star.dataset.rating);
+                if (starRating <= numericRating) {
+                    star.classList.add('selected');
+                } else {
+                    star.classList.remove('selected');
+                }
+            });
+        }
+        
+        /**
+         * 별점 평가 이벤트 핸들러 초기화
+         * @param {string} containerId - 별점 컨테이너 ID
+         * @param {string} inputId - 값을 저장할 hidden input ID
+         */
+        function initStarRating(containerId, inputId) {
+            const container = document.getElementById(containerId);
+            const input = document.getElementById(inputId);
+            
+            container.addEventListener('click', (e) => {
+                const star = e.target.closest('svg');
+                if (!star) return;
+                
+                const rating = parseInt(star.dataset.rating);
+                container.dataset.value = rating;
+                input.value = rating;
+                renderStars(container, rating);
+            });
+        }
+
+        /**
+         * 이미지 파일을 리사이징하여 Base64 데이터 URL로 변환
+         * @param {File} file - 이미지 파일
+         * @param {number} maxWidth - 최대 너비
+         * @returns {Promise<string>} - Base64 데이터 URL
+         */
+        function resizeImageAsBase64(file, maxWidth = 800) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        let width = img.width;
+                        let height = img.height;
+
+                        if (width > maxWidth) {
+                            height = (maxWidth / width) * height;
+                            width = maxWidth;
+                        }
+
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+                        
+                        // JPEG, 70% 품질로 압축
+                        resolve(canvas.toDataURL('image/jpeg', 0.7)); 
+                    };
+                    img.onerror = reject;
+                    img.src = e.target.result;
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // --- Google Apps Script (GAS) 통신 ---
+
+        /**
+         * GAS에서 앱 설정(config) 로드
+         */
+        async function loadConfigAndRenderLogin() {
+            if (GOOGLE_APPS_SCRIPT_URL === "https://script.google.com/a/macros/coway.com/s/AKfycbw2qqYZEwZBwsHt64OedOhS5k07G57JLJnY91t0FBP_G97CLMPwYZsb9nabbINdcU8/exec") {
+                showMessage("앱이 설정되지 않았습니다. HTML 파일 상단의 GOOGLE_APPS_SCRIPT_URL 변수를 수정해주세요.", "설정 오류");
+                return;
+            }
+            
+            showLoading(true);
+            try {
+                const response = await fetch(GOOGLE_APPS_SCRIPT_URL + '?action=getConfig');
+                if (!response.ok) {
+                    throw new Error(`서버 응답 오류: ${response.statusText}`);
+                }
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    appState.config = data.config;
+                    
+                    // 앱 제목 렌더링
+                    if (appState.config.appTitle) {
+                        document.getElementById('app-title').textContent = appState.config.appTitle;
+                    } else {
+                        document.getElementById('app-title').textContent = "필드테스트 피드백 앱"; 
+                    }
+
+                    // 사용자 목록 렌더링
+                    const userSelect = document.getElementById('user-select');
+                    userSelect.innerHTML = '<option value="">이름을 선택하세요</option>';
+                    if (Array.isArray(appState.config.users) && appState.config.users.length > 0) {
+                        appState.config.users.forEach(user => {
+                            const option = document.createElement('option');
+                            option.value = user;
+                            option.textContent = user;
+                            userSelect.appendChild(option);
+                        });
+                    } else {
+                        throw new Error("Google Sheet 'Users' 시트에서 사용자 명단을 불러오지 못했습니다.");
+                    }
+                    
+                    navigateTo('login');
+                } else {
+                    throw new Error(data.message || "설정 로드 실패");
+                }
+            } catch (error) {
+                console.error("설정 로드 오류:", error);
+                showMessage(`앱 설정을 불러오는 데 실패했습니다: ${error.message}. Google Sheet 설정과 Apps Script 배포를 확인하세요.`, "오류");
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        /**
+         * 선택된 사용자의 제출 내역 로드
+         * @param {string} testUser - 선택된 테스터 이름
+         */
+        async function loadSubmissions(testUser) {
+            showLoading(true);
+            try {
+                const response = await fetch(GOOGLE_APPS_SCRIPT_URL + '?action=getSubmissions&user=' + encodeURIComponent(testUser));
+                if (!response.ok) {
+                    throw new Error(`서버 응답 오류: ${response.statusText}`);
+                }
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    // 최신순으로 정렬
+                    appState.submissions = data.submissions.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                    renderMainMenu(); // 메인 메뉴 UI 갱신
+                } else {
+                    throw new Error(data.message || "제출 내역 로드 실패");
+                }
+            } catch (error) {
+                console.error("제출 내역 로드 오류:", error);
+                showMessage("제출 내역을 불러오는 데 실패했습니다.", "오류");
+            } finally {
+                showLoading(false);
+            }
+        }
+        
+        // --- UI 렌더링 함수 ---
+
+        /**
+         * 메인 메뉴 페이지 렌더링
+         */
+        function renderMainMenu() {
+            document.getElementById('welcome-message').textContent = `${appState.selectedTestUser}님, 환영합니다.`;
+            const listContainer = document.getElementById('submissions-list');
+            const noSubmissionsEl = document.getElementById('no-submissions');
+            listContainer.innerHTML = ''; // 목록 초기화
+
+            if (appState.submissions.length === 0) {
+                noSubmissionsEl.style.display = 'block';
+            } else {
+                noSubmissionsEl.style.display = 'none';
+                appState.submissions.forEach(sub => {
+                    const el = document.createElement('div');
+                    el.className = "flex justify-between items-center p-4 bg-white border border-gray-200 rounded-lg shadow-sm hover:bg-gray-50 transition cursor-pointer";
+                    el.dataset.submissionId = sub.id; // submission 'id' (timestamp)
+                    el.innerHTML = `
+                        <div>
+                            <p class="font-semibold text-blue-700">점검 완료</p>
+                            <p class="text-sm text-gray-500">${formatTimestamp(sub.timestamp)}</p>
+                        </div>
+                        <i data-lucide="chevron-right" class="w-5 h-5 text-gray-400"></i>
+                    `;
+                    el.addEventListener('click', () => handleViewDetail(sub.id));
+                    listContainer.appendChild(el);
+                });
+            }
+            // lucide 아이콘 다시 렌더링
+            lucide.createIcons();
+        }
+
+        /**
+         * 점검 항목 페이지 렌더링
+         */
+        function renderInspectionPage() {
+            appState.currentSubmissionPhotos = {}; // 사진 초기화
+            const container = document.getElementById('inspection-items-container');
+            container.innerHTML = ''; // 컨테이너 초기화
+
+            appState.config.inspectionItems.forEach(item => {
+                const el = document.createElement('div');
+                el.className = "bg-white p-5 rounded-lg shadow-md border border-gray-200";
+                el.innerHTML = `
+                    <h3 class="text-lg font-semibold mb-3">${item.title}</h3>
+                    <p class="text-sm text-gray-600 mb-4">${item.desc}</p>
+                    
+                    <!-- 예시 사진 -->
+                    <div class="mb-4">
+                        <p class="text-xs font-medium text-gray-500 mb-2">촬영 예시</p>
+                        <img src="${item.exampleImageUrl}" alt="${item.title} 예시" class="w-full h-auto rounded-md border border-gray-200" onerror="this.src='https://placehold.co/600x400/e2e8f0/64748b?text=이미지+로드+실패';">
+                    </div>
+
+                    <!-- 사진 촬영 -->
+                    <label for="file-input-${item.id}" class="file-input-label" id="file-label-${item.id}">
+                        <div class="camera-icon-bg">
+                            <i data-lucide="camera" class="w-10 h-10 text-white"></i>
+                        </div>
+                        <span class="mt-3 font-medium text-blue-600">사진 촬영하기</span>
+                        <input type="file" accept="image/*" capture="environment" id="file-input-${item.id}" class="hidden" data-item-id="${item.id}">
+                    </label>
+                    
+                    <!-- 사진 미리보기 (Base64) -->
+                    <div id="preview-container-${item.id}" class="mt-4" style="display: none;">
+                        <p class="text-xs font-medium text-gray-500 mb-2">촬영된 사진</p>
+                        <img id="preview-image-${item.id}" class="w-full h-auto rounded-md border-4 border-blue-500">
+                        <button type="button" class="retake-btn w-full mt-2 text-sm text-red-600 hover:text-red-800" data-item-id="${item.id}">
+                            다시 촬영
+                        </button>
+                    </div>
+                `;
+                container.appendChild(el);
+            });
+            
+            // 폼 및 별점 초기화
+            document.getElementById('inspection-form').reset();
+            renderStars(document.getElementById('difficulty-rating'), 0);
+            renderStars(document.getElementById('satisfaction-rating'), 0);
+            document.getElementById('difficulty-input').value = 0;
+            document.getElementById('satisfaction-input').value = 0;
+
+            // lucide 아이콘 렌더링
+            lucide.createIcons();
+        }
+
+        /**
+         * 제출 상세 보기 페이지 렌더링
+         * @param {object} submission - 상세 보기할 제출 객체
+         */
+        function renderSubmissionDetail(submission) {
+            appState.viewingSubmission = submission;
+            document.getElementById('detail-page-title').textContent = `${formatTimestamp(submission.timestamp)} 제출 내역`;
+            
+            const container = document.getElementById('detail-content');
+            container.innerHTML = ''; // 컨테이너 초기화
+
+            // 1. 사진 내역
+            const photosContainer = document.createElement('div');
+            photosContainer.className = "space-y-6";
+            photosContainer.innerHTML = `<h2 class="text-xl font-semibold text-gray-800 border-b pb-3">촬영된 사진</h2>`;
+            
+            appState.config.inspectionItems.forEach(item => {
+                // GAS에서 받은 photoUrls 객체에서 URL을 찾음
+                const photoUrl = submission.photoUrls[item.id];
+                const photoEl = document.createElement('div');
+                photoEl.className = "bg-white p-4 rounded-lg shadow-sm border";
+                photoEl.innerHTML = `
+                    <h3 class="text-md font-semibold mb-3 text-gray-700">${item.title}</h3>
+                    ${photoUrl ? 
+                        // Google Drive 이미지 URL을 src에 사용
+                        `<img src="${photoUrl}" alt="${item.title} 촬영 사진" class="w-full h-auto rounded-md border" onerror="this.src='https://placehold.co/600x400/e2e8f0/64748b?text=이미지+로드+실패'; this.alt='이미지 로드 실패';">` :
+                        `<p class="text-gray-500 text-center p-4 bg-gray-100 rounded-md">이 항목의 사진이 제출되지 않았습니다.</p>`
+                    }
+                `;
+                photosContainer.appendChild(photoEl);
+            });
+            container.appendChild(photosContainer);
+
+            // 2. 피드백 내역
+            const feedbackContainer = document.createElement('div');
+            feedbackContainer.className = "space-y-6 bg-gray-50 p-6 rounded-lg shadow-inner mt-8";
+            feedbackContainer.innerHTML = `
+                <h2 class="text-xl font-semibold text-gray-800 border-b pb-3">종합 피드백</h2>
+                
+                <div>
+                    <label class="block text-md font-medium text-gray-700 mb-3">1. 관리 난이도</label>
+                    <div id="detail-difficulty-rating" class="star-rating" data-value="0">
+                        <svg data-rating="1" fill="currentColor" viewBox="0 0 20 20"><path d="M10 15l-5.878 3.09 1.123-6.545L.489 7.09l6.572-.955L10 0l2.939 6.135 6.572.955-4.756 4.455 1.123 6.545z"/></svg>
+                        <svg data-rating="2" fill="currentColor" viewBox="0 0 20 20"><path d="M10 15l-5.878 3.09 1.123-6.545L.489 7.09l6.572-.955L10 0l2.939 6.135 6.572.955-4.756 4.455 1.123 6.545z"/></svg>
+                        <svg data-rating="3" fill="currentColor" viewBox="0 0 20 20"><path d="M10 15l-5.878 3.09 1.123-6.545L.489 7.09l6.572-.955L10 0l2.939 6.135 6.572.955-4.756 4.455 1.123 6.545z"/></svg>
+                        <svg data-rating="4" fill="currentColor" viewBox="0 0 20 20"><path d="M10 15l-5.878 3.09 1.123-6.545L.489 7.09l6.572-.955L10 0l2.939 6.135 6.572.955-4.756 4.455 1.123 6.545z"/></svg>
+                        <svg data-rating="5" fill="currentColor" viewBox="0 0 20 20"><path d="M10 15l-5.878 3.09 1.123-6.545L.489 7.09l6.572-.955L10 0l2.939 6.135 6.572.955-4.756 4.455 1.123 6.545z"/></svg>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-md font-medium text-gray-700 mb-3">2. 전반적인 만족도</label>
+                    <div id="detail-satisfaction-rating" class="star-rating" data-value="0">
+                        <svg data-rating="1" fill="currentColor" viewBox="0 0 20 20"><path d="M10 15l-5.878 3.09 1.123-6.545L.489 7.09l6.572-.955L10 0l2.939 6.135 6.572.955-4.756 4.455 1.123 6.545z"/></svg>
+                        <svg data-rating="2" fill="currentColor" viewBox="0 0 20 20"><path d="M10 15l-5.878 3.09 1.123-6.545L.489 7.09l6.572-.955L10 0l2.939 6.135 6.572.955-4.756 4.455 1.123 6.545z"/></svg>
+                        <svg data-rating="3" fill="currentColor" viewBox="0 0 20 20"><path d="M10 15l-5.878 3.09 1.123-6.545L.489 7.09l6.572-.955L10 0l2.939 6.135 6.572.955-4.756 4.455 1.123 6.545z"/></svg>
+                        <svg data-rating="4" fill="currentColor" viewBox="0 0 20 20"><path d="M10 15l-5.878 3.09 1.123-6.545L.489 7.09l6.572-.955L10 0l2.939 6.135 6.572.955-4.756 4.455 1.123 6.545z"/></svg>
+                        <svg data-rating="5" fill="currentColor" viewBox="0 0 20 20"><path d="M10 15l-5.878 3.09 1.123-6.545L.489 7.09l6.572-.955L10 0l2.939 6.135 6.572.955-4.756 4.455 1.123 6.545z"/></svg>
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="block text-md font-medium text-gray-700 mb-2">3. 추가 의견</label>
+                    <p class="w-full p-3 bg-white border border-gray-300 rounded-md min-h-[100px] whitespace-pre-wrap">${submission.feedback.comments || "<i>추가 의견 없음</i>"}</p>
+                </div>
+            `;
+            container.appendChild(feedbackContainer);
+            
+            // 별점 렌더링 (읽기 전용이므로 이벤트 리스너 없음)
+            renderStars(document.getElementById('detail-difficulty-rating'), submission.feedback.difficulty);
+            renderStars(document.getElementById('detail-satisfaction-rating'), submission.feedback.satisfaction);
+
+            // lucide 아이콘 렌더링
+            lucide.createIcons();
+        }
+
+
+        // --- 이벤트 핸들러 ---
+
+        /**
+         * 로그인 버튼 클릭 핸들러
+         */
+        async function handleLogin() {
+            const selectedUser = document.getElementById('user-select').value;
+            if (!selectedUser) {
+                showMessage("테스터를 선택하세요.");
+                return;
+            }
+            appState.selectedTestUser = selectedUser;
+            await loadSubmissions(selectedUser); // 데이터 로드
+            navigateTo('mainMenu'); // 메인 메뉴로 이동
+        }
+
+        /**
+         * 로그아웃 버튼 클릭 핸들러
+         */
+        function handleLogout() {
+            // 상태 초기화
+            appState.selectedTestUser = null;
+            appState.submissions = [];
+            document.getElementById('user-select').value = ""; // 드롭다운 초기화
+            document.getElementById('login-btn').disabled = true;
+            navigateTo('login');
+        }
+
+        /**
+         * '새 점검 시작' 버튼 클릭 핸들러
+         */
+        function handleStartInspection() {
+            // config가 로드되었는지 재확인
+            if (!appState.config || !appState.config.inspectionItems) {
+                showMessage("점검 항목을 불러오지 못했습니다. 앱을 새로고침해주세요.", "오류");
+                return;
+            }
+            renderInspectionPage();
+            navigateTo('inspection');
+        }
+
+        /**
+         * '상세 보기' 클릭 핸들러
+         * @param {string} submissionId - 볼려는 제출의 ID (timestamp)
+         */
+        function handleViewDetail(submissionId) {
+            // submissionId는 timestamp 문자열
+            const submission = appState.submissions.find(s => s.id === submissionId);
+            if (submission) {
+                renderSubmissionDetail(submission);
+                navigateTo('submissionDetail');
+            } else {
+                showMessage("제출 내역을 찾을 수 없습니다.", "오류");
+            }
+        }
+        
+        /**
+         * 사진 파일 입력 변경 핸들러
+         * @param {Event} e - 이벤트 객체
+         */
+        async function handlePhotoCapture(e) {
+            const file = e.target.files[0];
+            const itemId = e.target.dataset.itemId;
+            if (!file || !itemId) return;
+
+            showLoading(true);
+            try {
+                const base64String = await resizeImageAsBase64(file);
+                
+                // 상태에 Base64 문자열 저장
+                appState.currentSubmissionPhotos[itemId] = base64String;
+
+                // UI 업데이트
+                document.getElementById(`file-label-${itemId}`).style.display = 'none';
+                const previewContainer = document.getElementById(`preview-container-${itemId}`);
+                const previewImage = document.getElementById(`preview-image-${itemId}`);
+                previewImage.src = base64String;
+                previewContainer.style.display = 'block';
+
+            } catch (error) {
+                console.error("사진 처리 오류:", error);
+                showMessage("사진을 처리하는 중 오류가 발생했습니다. 다시 시도해주세요.", "오류");
+            } finally {
+                showLoading(false);
+            }
+        }
+        
+        /**
+         * '다시 촬영' 버튼 클릭 핸들러
+         * @param {Event} e - 이벤트 객체
+         */
+        function handleRetakePhoto(e) {
+            if (!e.target.classList.contains('retake-btn')) return;
+            
+            const itemId = e.target.dataset.itemId;
+            if (!itemId) return;
+
+            // 상태에서 사진 데이터 삭제
+            delete appState.currentSubmissionPhotos[itemId];
+
+            // UI 리셋
+            document.getElementById(`file-label-${itemId}`).style.display = 'flex';
+            document.getElementById(`preview-container-${itemId}`).style.display = 'none';
+            document.getElementById(`preview-image-${itemId}`).src = '';
+            document.getElementById(`file-input-${itemId}`).value = null; // 파일 입력 리셋
+        }
+
+        /**
+         * 점검 제출 폼 핸들러
+         * @param {Event} e - 폼 제출 이벤트
+         */
+        async function handleSubmitInspection(e) {
+            e.preventDefault();
+            
+            if (GOOGLE_APPS_SCRIPT_URL === "YOUR_GOOGLE_APPS_SCRIPT_URL_HERE") {
+                showMessage("앱이 설정되지 않았습니다. HTML 파일 상단의 GOOGLE_APPS_SCRIPT_URL 변수를 수정해주세요.", "설정 오류");
+                return;
+            }
+
+            showLoading(true);
+
+            // 피드백 데이터 수집
+            const feedback = {
+                difficulty: parseInt(document.getElementById('difficulty-input').value) || 0,
+                satisfaction: parseInt(document.getElementById('satisfaction-input').value) || 0,
+                comments: document.getElementById('comments').value.trim()
+            };
+            
+            // 필수 피드백 항목 확인
+            if (feedback.difficulty === 0 || feedback.satisfaction === 0) {
+                showMessage("관리 난이도와 전반적 만족도를 모두 평가해주세요.");
+                showLoading(false);
+                return;
+            }
+
+            // Google Apps Script로 보낼 최종 객체
+            const submissionData = {
+                testUser: appState.selectedTestUser,
+                timestamp: new Date().toISOString(), // ISO 문자열로 전송
+                photos: appState.currentSubmissionPhotos, // Base64 사진 객체
+                feedback: feedback
+            };
+
+            try {
+                // Apps Script에 POST 요청
+                const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'text/plain;charset=utf-8', // GAS POST는 text/plain으로 보내고 수동 파싱
+                    },
+                    body: JSON.stringify(submissionData)
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`서버 응답 오류: ${response.statusText}`);
+                }
+
+                const result = await response.json();
+
+                if (result.status === 'success') {
+                    showMessage("피드백이 성공적으로 제출되었습니다.", "제출 완료");
+                    await loadSubmissions(appState.selectedTestUser); // 새 목록 로드
+                    navigateTo('mainMenu'); // 메인 메뉴로 복귀
+                } else {
+                    throw new Error(result.message || "제출 실패");
+                }
+            
+            } catch (error) {
+                console.error("제출 오류:", error);
+                showMessage(`제출 중 오류가 발생했습니다: ${error.message}`, "오류");
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // --- 앱 초기화 ---
+        
+        /**
+         * lucide 아이콘이 로드될 때까지 확인한 후 앱을 초기화하는 함수
+         */
+        function initializeIconsAndApp() {
+            if (typeof lucide !== 'undefined') {
+                // lucide가 로드됨, 앱 초기화 진행
+                console.log("Lucide icons loaded. Initializing app.");
+
+                // 아이콘 초기화
+                lucide.createIcons();
+
+                // 모달 닫기
+                document.getElementById('modal-close-btn').addEventListener('click', () => {
+                    modal.style.display = 'none';
+                });
+                
+                // 페이지 네비게이션
+                document.getElementById('login-btn').addEventListener('click', handleLogin);
+                document.getElementById('logout-btn').addEventListener('click', handleLogout);
+                document.getElementById('start-inspection-btn').addEventListener('click', handleStartInspection);
+                document.getElementById('back-to-menu-btn').addEventListener('click', () => navigateTo('mainMenu'));
+                document.getElementById('back-to-menu-from-detail-btn').addEventListener('click', () => navigateTo('mainMenu'));
+
+                // 사용자 선택 시 로그인 버튼 활성화
+                document.getElementById('user-select').addEventListener('change', (e) => {
+                    document.getElementById('login-btn').disabled = !e.target.value;
+                });
+                
+                // 점검 페이지 이벤트 리스너
+                document.getElementById('inspection-form').addEventListener('submit', handleSubmitInspection);
+                
+                // 사진 입력 (이벤트 위임)
+                document.getElementById('inspection-items-container').addEventListener('change', (e) => {
+                    if (e.target.type === 'file') {
+                        handlePhotoCapture(e);
+                    }
+                });
+                
+                // 다시 촬영 (이벤트 위임)
+                document.getElementById('inspection-items-container').addEventListener('click', handleRetakePhoto);
+
+                // 별점 평가 초기화
+                initStarRating('difficulty-rating', 'difficulty-input');
+                initStarRating('satisfaction-rating', 'satisfaction-input');
+
+                // 앱 비동기 초기화 시작 (설정 로드)
+                loadConfigAndRenderLogin();
+
+            } else {
+                // lucide가 아직 로드되지 않음, 50ms 후 다시 시도
+                console.log("Waiting for Lucide icons...");
+                setTimeout(initializeIconsAndApp, 50);
+            }
+        }
+
+        // --- 앱 시작 ---
+        // DOM 파싱이 완료되면, lucide 로드를 기다리는 함수를 실행합니다.
+        window.addEventListener('DOMContentLoaded', initializeIconsAndApp);
+
+    </script>
+</body>
+</html>
+
